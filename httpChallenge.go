@@ -26,7 +26,8 @@ type Data struct {
 
 func main() {
 	data := &Data{}
-	// func for handler that does operation (dbHandler)
+	var db = make(map[string]int)
+
 	dbPost := func(w http.ResponseWriter, r *http.Request) {
 		// Decode request
 		defer r.Body.Close()
@@ -38,27 +39,45 @@ func main() {
 			return
 		}
 
-		data.Key = req.Key
-		data.Value = req.Value
+		db[req.Key] = req.Value
+
 		fmt.Println(req)
 	}
 
 	dbGet := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
+		resp := &Data{"smelly", 43}
+
 		enc := json.NewEncoder(w)
-		if err := enc.Encode(data); err != nil {
+		if err := enc.Encode(resp); err != nil {
 			// Can't return error to client here
-			log.Printf("can't encode %v - %s", data, err)
+			log.Printf("can't encode %v - %s", resp, err)
 		}
 
+	}
+
+	// func for handler that does operation (dbHandler)
+	dbHandler := func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			dbGet(w, r)
+		case http.MethodPost:
+			dbPost(w, r)
+		default:
+			println("method not supported")
+		}
 	}
 
 	data.Key = "frangipani"
 	data.Value = 7
 
-	http.HandleFunc("/db2", dbGet)
-	http.HandleFunc("/db", dbPost)
+	// db["lasagna"] = 78
+	// fmt.Println(db["lasagna"])
+
+	http.HandleFunc("/db", dbHandler)
+	http.HandleFunc("/db/{Key}", dbGet)
+
 	if err := http.ListenAndServe("127.0.0.1:8088", nil); err != nil {
 		log.Fatal(err)
 	}
