@@ -2,7 +2,7 @@
 
 And since we can't access the Go data structure from two different Go routines, limit the access to the map with a sync.Mutex.
 
-You can see an example of a POST body below. The key is x, and the value is 1.*/
+*/
 
 package main
 
@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 // Data is the key and matching value from Json
@@ -22,6 +23,7 @@ type Data struct {
 
 func main() {
 	var db = make(map[string]int)
+	var mutex = &sync.Mutex{}
 
 	dbPost := func(w http.ResponseWriter, r *http.Request) {
 		// Decode request
@@ -34,7 +36,9 @@ func main() {
 			return
 		}
 
+		mutex.Lock()
 		db[req.Key] = req.Value
+		mutex.Unlock()
 
 		fmt.Println(req)
 	}
@@ -53,12 +57,14 @@ func main() {
 		resultKey := strings.Join(keySlice, "") //convert array to string
 		fmt.Println(resultKey)
 		// look at map documentation and see if there's a method to check if key exists
-		if val, ok := db[resultKey]; ok {
+		mutex.Lock()
+		val, ok := db[resultKey]
+		mutex.Unlock()
+
+		if ok {
 			fmt.Println("value: ", val)
 
-			fmt.Println(db[resultKey])
-
-			resp := &Data{resultKey, db[resultKey]}
+			resp := &Data{resultKey, val}
 			if err := enc.Encode(resp); err != nil {
 				// Can't return error to client here
 				log.Printf("can't encode %v - %s", resp, err)
